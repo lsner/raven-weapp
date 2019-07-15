@@ -1,6 +1,6 @@
 # Raven-weapp
 
-为方便小程序接入sentry，由raven改写而来的小程序版本。
+为方便百度小程序接入sentry，由raven改写而来的百度小程序版本。
 
 #### 引入文件
 由于目前小程序不支持从node_modules中引入文件，因此以npm方式安装的话只能手动将raven-weapp/dist目录下需要的文件拷贝到其他文件中，在app.js中引入，例如：
@@ -34,7 +34,7 @@ options = {
 ```
 {
     SDKversion: '小程序基础库版本',
-    WXversion: '微信版本',
+    BDversion: '百度版本',
     device: '设备型号',
     network: '网络类型',
     system: '系统信息',

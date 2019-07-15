@@ -224,17 +224,17 @@ Raven.prototype = {
 
   installWeapp: function() {
     var self = this;
-    wx.getSystemInfo({
+    swan.getSystemInfo({
       success: function(res) {
         self.setTagsContext({
           device: res.model,
           system: res.system,
-          WXversion: res.version,
+          BDversion: res.version,
           SDKversion: res.SDKVersion
         });
       }
     });
-    wx.getNetworkType({
+    swan.getNetworkType({
       success: function(res) {
         self.setTagsContext({
           network: res.networkType
@@ -1116,7 +1116,7 @@ Raven.prototype = {
 
     var wrappedBuiltIns = self._wrappedBuiltIns;
 
-    /* 小程序的wx.request是不可变对象，xhr的breadcrumbs需要手动做
+    /* 小程序的swan.request是不可变对象，xhr的breadcrumbs需要手动做
     function wrapProp(prop, xhr) {
       if (prop in xhr && isFunction(xhr[prop])) {
         fill(xhr, prop, function(orig) {
@@ -1275,7 +1275,7 @@ Raven.prototype = {
     // borrowed from: https://github.com/angular/angular.js/pull/13945/files
     var chrome = _window.chrome;
     var isChromePackagedApp = chrome && chrome.app && chrome.app.runtime;
-    var hasPushState = !isChromePackagedApp && _window.history && history.pushState;
+    var hasPushState = !isChromePackagedApp && _window.history && history && history.pushState;
     if (autoBreadcrumbs.location && hasPushState) {
       // TODO: remove onpopstate handler on uninstall()
       var oldOnPopState = _window.onpopstate;
@@ -1886,7 +1886,7 @@ Raven.prototype = {
     request.send(stringify(opts.data));
     */
     if (this._globalOptions.environment === 'production') {
-      wx.request({
+      swan.request({
         url: opts.url + '?' + urlencode(opts.auth),
         method: 'POST',
         header: {
