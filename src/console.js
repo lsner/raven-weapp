@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 var wrapMethod = function(console, level, callback) {
   var originalConsoleLevel = console[level];
@@ -8,25 +8,30 @@ var wrapMethod = function(console, level, callback) {
     return;
   }
 
-  var sentryLevel = level === 'warn' ? 'warning' : level;
+  var sentryLevel = level === "warn" ? "warning" : level;
 
   console[level] = function() {
     var args = [].slice.call(arguments);
 
-    // var msg = '' + args.join(' ');
-    var msg = '' + args.map(function(arg) {
-      if (typeof arg === 'object') {
-          return JSON.stringify(arg);
-      }
-      return arg;
-    }).join(' ');
-    
-    var data = {level: sentryLevel, logger: 'console', extra: {arguments: args}};
+    var msg = "" + args.join(" ");
+    // var msg = '' + args.map(function(arg) {
+    //   if (typeof arg === 'object') {
+    //       return JSON.stringify(arg);
+    //   }
+    //   return arg;
+    // }).join(' ');
 
-    if (level === 'assert') {
+    var data = {
+      level: sentryLevel,
+      logger: "console",
+      extra: { arguments: args }
+    };
+
+    if (level === "assert") {
       if (args[0] === false) {
         // Default browsers message
-        msg = 'Assertion failed: ' + (args.slice(1).join(' ') || 'console.assert');
+        msg =
+          "Assertion failed: " + (args.slice(1).join(" ") || "console.assert");
         data.extra.arguments = args.slice(1);
         callback && callback(msg, data);
       }
