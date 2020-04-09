@@ -13,13 +13,33 @@ var wrapMethod = function(console, level, callback) {
   console[level] = function() {
     var args = [].slice.call(arguments);
 
-    var msg = "" + args.join(" ");
+    // var msg = "" + args.join(" ");
     // var msg = '' + args.map(function(arg) {
     //   if (typeof arg === 'object') {
     //       return JSON.stringify(arg);
     //   }
     //   return arg;
     // }).join(' ');
+    var msg =
+      "" +
+      args
+        .map(function(arg) {
+          var simpleObject = {};
+          for (var prop in arg) {
+            if (!arg.hasOwnProperty(prop)) {
+              continue;
+            }
+            if (typeof arg[prop] == "object") {
+              continue;
+            }
+            if (typeof arg[prop] == "function") {
+              continue;
+            }
+            simpleObject[prop] = arg[prop];
+          }
+          return JSON.stringify(simpleObject); // returns cleaned up JSON
+        })
+        .join(" ");
 
     var data = {
       level: sentryLevel,
