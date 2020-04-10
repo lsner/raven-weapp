@@ -26,7 +26,7 @@ var wrapMethod = function(console, level, callback) {
         .map(function(arg) {
           var simpleObject = {};
           for (var prop in arg) {
-            if (!arg.hasOwnProperty(prop)) {
+            if (!Object.prototype.hasOwnProperty.call(arg, prop)) {
               continue;
             }
             if (typeof arg[prop] == "object") {
