@@ -1,6 +1,6 @@
 {
   "name": "@lsner/raven-baidu",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Sentry SDK for BaiduLite",
   "main": "index.js",
   "scripts": {
