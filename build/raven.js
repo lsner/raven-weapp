@@ -27,32 +27,33 @@ var wrapMethod = function(console, level, callback) {
     var args = [].slice.call(arguments);
 
     // var msg = "" + args.join(" ");
-    // var msg = '' + args.map(function(arg) {
-    //   if (typeof arg === 'object') {
-    //       return JSON.stringify(arg);
-    //   }
-    //   return arg;
-    // }).join(' ');
+    // var msg =
+    //   "" +
+    //   args
+    //     .map(function(arg) {
+    //       if (typeof arg === "object") {
+    //         return JSON.stringify(arg);
+    //       }
+    //       return arg;
+    //     })
+    //     .join(" ");
+    var cache = [];
     var msg =
       "" +
       args
         .map(function(arg) {
-          var simpleObject = {};
-          for (var prop in arg) {
-            if (!Object.prototype.hasOwnProperty.call(arg, prop)) {
-              continue;
+          return JSON.stringify(arg, function(key, value) {
+            if (typeof value === "object" && value !== null) {
+              if (cache.indexOf(value) !== -1) {
+                return;
+              }
+              cache.push(value);
             }
-            if (typeof arg[prop] == "object") {
-              continue;
-            }
-            if (typeof arg[prop] == "function") {
-              continue;
-            }
-            simpleObject[prop] = arg[prop];
-          }
-          return JSON.stringify(simpleObject); // returns cleaned up JSON
+            return value;
+          });
         })
         .join(" ");
+    cache = null;
 
     var data = {
       level: sentryLevel,
