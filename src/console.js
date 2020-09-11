@@ -40,7 +40,6 @@ var wrapMethod = function(console, level, callback) {
           });
         })
         .join(" ");
-    cache = null;
 
     var data = {
       level: sentryLevel,
