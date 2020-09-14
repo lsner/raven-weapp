@@ -13,6 +13,8 @@ module.exports = RavenConfigError;
 },{}],2:[function(require,module,exports){
 "use strict";
 
+var safeStringify = require("./safeStringify").safeStringify;
+
 var wrapMethod = function(console, level, callback) {
   var originalConsoleLevel = console[level];
   var originalConsole = console;
@@ -26,7 +28,9 @@ var wrapMethod = function(console, level, callback) {
   console[level] = function() {
     var args = [].slice.call(arguments);
 
+    /* v0 */
     // var msg = "" + args.join(" ");
+    /* v1 */
     // var msg =
     //   "" +
     //   args
@@ -37,23 +41,17 @@ var wrapMethod = function(console, level, callback) {
     //       return arg;
     //     })
     //     .join(" ");
-    var cache = [];
+    /* v3 */
     var msg =
       "" +
       args
         .map(function(arg) {
-          return JSON.stringify(arg, function(key, value) {
-            if (typeof value === "object" && value !== null) {
-              if (cache.indexOf(value) !== -1) {
-                return;
-              }
-              cache.push(value);
-            }
-            return value;
-          });
+          if (typeof arg === "object") {
+            return safeStringify(arg);
+          }
+          return arg;
         })
         .join(" ");
-    cache = null;
 
     var data = {
       level: sentryLevel,
@@ -86,22 +84,48 @@ module.exports = {
   wrapMethod: wrapMethod
 };
 
-},{}],3:[function(require,module,exports){
+},{"./safeStringify":5}],3:[function(require,module,exports){
+function getENV() {
+  var currentSdk = null;
+  if (typeof wx === "object") {
+    currentSdk = wx;
+  } else if (typeof swan === "object") {
+    currentSdk = swan;
+  } else if (typeof my === "object") {
+    currentSdk = my;
+  } else if (typeof tt === "object") {
+    currentSdk = tt;
+  } else if (typeof qq === "object") {
+    currentSdk = qq;
+  } else {
+    console.error("sentry-miniapp 暂不支持此平台");
+  }
+
+  return currentSdk;
+}
+
+module.exports = {
+  getENV: getENV
+};
+
+},{}],4:[function(require,module,exports){
 (function (global){
 /*global XDomainRequest:false, __DEV__:false*/
-'use strict';
+"use strict";
 
-var TraceKit = require('../vendor/TraceKit/tracekit');
-var stringify = require('../vendor/json-stringify-safe/stringify');
-var RavenConfigError = require('./configError');
-var utils = require('./utils');
+var TraceKit = require("../vendor/TraceKit/tracekit");
+var stringify = require("../vendor/json-stringify-safe/stringify");
+var RavenConfigError = require("./configError");
+var utils = require("./utils");
+var ENV = require("./env").getENV();
+console.log("sentry ENV====", ENV);
 
 var isError = utils.isError,
   isObject = utils.isObject;
 
-var wrapConsoleMethod = require('./console').wrapMethod;
+var wrapConsoleMethod = require("./console").wrapMethod;
 
-var dsnKeys = 'source protocol user pass host port path'.split(' '),
+var dsnKeys = "source protocol user pass host port path".split(" "),
   dsnPattern = /^(?:(\w+):)?\/\/(?:(\w+)(:\w+)?@)?([\w\.-]+)(?::(\d+))?(\/.*)/;
 
 function now() {
@@ -110,9 +134,13 @@ function now() {
 
 // This is to be defensive in environments where window does not exist (see https://github.com/getsentry/raven-js/pull/785)
 var _window =
-  typeof window !== 'undefined'
+  typeof window !== "undefined"
     ? window
-    : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+    : typeof global !== "undefined"
+    ? global
+    : typeof self !== "undefined"
+    ? self
+    : {};
 var _document = _window.document;
 var _navigator = _window.navigator;
 
@@ -128,7 +156,7 @@ function keepOriginalCallback(original, callback) {
 // If there is no JSON, we no-op the core features of Raven
 // since JSON is required to encode the payload
 function Raven() {
-  this._hasJSON = !!(typeof JSON === 'object' && JSON.stringify);
+  this._hasJSON = !!(typeof JSON === "object" && JSON.stringify);
   // Raven can run in contexts where there's no document (react-native)
   this._hasDocument = !isUndefined(_document);
   this._hasNavigator = !isUndefined(_navigator);
@@ -140,12 +168,12 @@ function Raven() {
   this._globalProject = null;
   this._globalContext = {};
   this._globalOptions = {
-    logger: 'javascript',
+    logger: "javascript",
     ignoreErrors: [],
     ignoreUrls: [],
     whitelistUrls: [],
     includePaths: [],
-    crossOrigin: 'anonymous',
+    crossOrigin: "anonymous",
     collectWindowErrors: true,
     maxMessageLength: 0,
 
@@ -190,24 +218,24 @@ Raven.prototype = {
   // webpack (using a build step causes webpack #1617). Grunt verifies that
   // this value matches package.json during build.
   //   See: https://github.com/getsentry/raven-js/issues/465
-  VERSION: '0.0.7',
+  VERSION: "0.0.7",
 
   debug: false,
 
   TraceKit: TraceKit, // alias to TraceKit
 
   /*
-     * Configure Raven with a DSN and extra options
-     *
-     * @param {string} dsn The public Sentry DSN
-     * @param {object} options Set of global options [optional]
-     * @return {Raven}
-     */
+   * Configure Raven with a DSN and extra options
+   *
+   * @param {string} dsn The public Sentry DSN
+   * @param {object} options Set of global options [optional]
+   * @return {Raven}
+   */
   config: function(dsn, options) {
     var self = this;
 
     if (self._globalServer) {
-      this._logDebug('error', 'Error: Raven has already been configured');
+      this._logDebug("error", "Error: Raven has already been configured");
       return self;
     }
     if (!dsn) return self;
@@ -218,7 +246,7 @@ Raven.prototype = {
     if (options) {
       each(options, function(key, value) {
         // tags and extra are special and need to be put into context
-        if (key === 'tags' || key === 'extra' || key === 'user') {
+        if (key === "tags" || key === "extra" || key === "user") {
           self._globalContext[key] = value;
         } else {
           globalOptions[key] = value;
@@ -231,7 +259,9 @@ Raven.prototype = {
     // "Script error." is hard coded into browsers for errors that it can't read.
     // this is the result of a script being pulled in from an external domain and CORS.
     globalOptions.ignoreErrors.push(/^Script error\.?$/);
-    globalOptions.ignoreErrors.push(/^Javascript error: Script error\.? on line 0$/);
+    globalOptions.ignoreErrors.push(
+      /^Javascript error: Script error\.? on line 0$/
+    );
 
     // join regexp rules into one big rule
     globalOptions.ignoreErrors = joinRegExp(globalOptions.ignoreErrors);
@@ -255,7 +285,7 @@ Raven.prototype = {
     };
 
     var autoBreadcrumbs = globalOptions.autoBreadcrumbs;
-    if ({}.toString.call(autoBreadcrumbs) === '[object Object]') {
+    if ({}.toString.call(autoBreadcrumbs) === "[object Object]") {
       autoBreadcrumbs = objectMerge(autoBreadcrumbDefaults, autoBreadcrumbs);
     } else if (autoBreadcrumbs !== false) {
       autoBreadcrumbs = autoBreadcrumbDefaults;
@@ -267,7 +297,7 @@ Raven.prototype = {
     };
 
     var instrument = globalOptions.instrument;
-    if ({}.toString.call(instrument) === '[object Object]') {
+    if ({}.toString.call(instrument) === "[object Object]") {
       instrument = objectMerge(instrumentDefaults, instrument);
     } else if (instrument !== false) {
       instrument = instrumentDefaults;
@@ -281,20 +311,23 @@ Raven.prototype = {
   },
 
   /*
-     * Installs a global window.onerror error handler
-     * to capture and report uncaught exceptions.
-     * At this point, install() is required to be called due
-     * to the way TraceKit is set up.
-     *
-     * @return {Raven}
-     */
+   * Installs a global window.onerror error handler
+   * to capture and report uncaught exceptions.
+   * At this point, install() is required to be called due
+   * to the way TraceKit is set up.
+   *
+   * @return {Raven}
+   */
   install: function() {
     var self = this;
     if (self.isSetup() && !self._isRavenInstalled) {
       TraceKit.report.subscribe(function() {
         self._handleOnErrorStackInfo.apply(self, arguments);
       });
-      if (self._globalOptions.instrument && self._globalOptions.instrument.tryCatch) {
+      if (
+        self._globalOptions.instrument &&
+        self._globalOptions.instrument.tryCatch
+      ) {
         self._instrumentTryCatch();
       }
 
@@ -314,7 +347,8 @@ Raven.prototype = {
 
   installWeapp: function() {
     var self = this;
-    swan.getSystemInfo({
+    if (!ENV) return;
+    ENV.getSystemInfo({
       success: function(res) {
         self.setTagsContext({
           device: res.model,
@@ -324,7 +358,7 @@ Raven.prototype = {
         });
       }
     });
-    swan.getNetworkType({
+    ENV.getNetworkType({
       success: function(res) {
         self.setTagsContext({
           network: res.networkType
@@ -334,14 +368,14 @@ Raven.prototype = {
   },
 
   /*
-     * Set the DSN (can be called multiple time unlike config)
-     *
-     * @param {string} dsn The public Sentry DSN
-     */
+   * Set the DSN (can be called multiple time unlike config)
+   *
+   * @param {string} dsn The public Sentry DSN
+   */
   setDSN: function(dsn) {
     var self = this,
       uri = self._parseDSN(dsn),
-      lastSlash = uri.path.lastIndexOf('/'),
+      lastSlash = uri.path.lastIndexOf("/"),
       path = uri.path.substr(1, lastSlash);
 
     self._dsn = dsn;
@@ -352,7 +386,12 @@ Raven.prototype = {
     self._globalServer = self._getGlobalServer(uri);
 
     self._globalEndpoint =
-      self._globalServer + '/' + path + 'api/' + self._globalProject + '/store/';
+      self._globalServer +
+      "/" +
+      path +
+      "api/" +
+      self._globalProject +
+      "/store/";
 
     // Reset backoff state since we may be pointing at a
     // new project/server
@@ -360,13 +399,13 @@ Raven.prototype = {
   },
 
   /*
-     * Wrap code within a context so Raven can capture errors
-     * reliably across domains that is executed immediately.
-     *
-     * @param {object} options A specific set of options for this context [optional]
-     * @param {function} func The callback to be immediately executed within the context
-     * @param {array} args An array of arguments to be called with the callback [optional]
-     */
+   * Wrap code within a context so Raven can capture errors
+   * reliably across domains that is executed immediately.
+   *
+   * @param {object} options A specific set of options for this context [optional]
+   * @param {function} func The callback to be immediately executed within the context
+   * @param {array} args An array of arguments to be called with the callback [optional]
+   */
   context: function(options, func, args) {
     if (isFunction(options)) {
       args = func || [];
@@ -378,13 +417,13 @@ Raven.prototype = {
   },
 
   /*
-     * Wrap code within a context and returns back a new function to be executed
-     *
-     * @param {object} options A specific set of options for this context [optional]
-     * @param {function} func The function to be wrapped in a new context
-     * @param {function} func A function to call before the try/catch wrapper [optional, private]
-     * @return {function} The newly wrapped functions with a context
-     */
+   * Wrap code within a context and returns back a new function to be executed
+   *
+   * @param {object} options A specific set of options for this context [optional]
+   * @param {function} func The function to be wrapped in a new context
+   * @param {function} func A function to call before the try/catch wrapper [optional, private]
+   * @return {function} The newly wrapped functions with a context
+   */
   wrap: function(options, func, _before) {
     var self = this;
     // 1 argument has been passed, and it's not a function
@@ -433,7 +472,8 @@ Raven.prototype = {
 
       // Recursively wrap all of a function's arguments that are
       // functions themselves.
-      while (i--) args[i] = deep ? self.wrap(options, arguments[i]) : arguments[i];
+      while (i--)
+        args[i] = deep ? self.wrap(options, arguments[i]) : arguments[i];
 
       try {
         // Attempt to invoke user-land function
@@ -466,10 +506,10 @@ Raven.prototype = {
   },
 
   /*
-     * Uninstalls the global error handler.
-     *
-     * @return {Raven}
-     */
+   * Uninstalls the global error handler.
+   *
+   * @return {Raven}
+   */
   uninstall: function() {
     TraceKit.report.uninstall();
 
@@ -482,22 +522,25 @@ Raven.prototype = {
   },
 
   /*
-     * Manually capture an exception and send it over to Sentry
-     *
-     * @param {error} ex An exception to be logged
-     * @param {object} options A specific set of options for this error [optional]
-     * @return {Raven}
-     */
+   * Manually capture an exception and send it over to Sentry
+   *
+   * @param {error} ex An exception to be logged
+   * @param {object} options A specific set of options for this error [optional]
+   * @return {Raven}
+   */
   captureException: function(ex, options) {
     // If not an Error is passed through, recall as a message instead
-    if (Object.prototype.toString.call(ex) === '[object String]' && ex.indexOf('thirdScriptError') !== -1) {
+    if (
+      Object.prototype.toString.call(ex) === "[object String]" &&
+      ex.indexOf("thirdScriptError") !== -1
+    ) {
       // 小程序js报错适配安卓机的错误
-      var parts = ex.split('\n')
-      ex = new Error(parts[1])
-      ex.name = parts[0]
-      parts.shift()
-      parts.shift()
-      ex.stack = parts.join('\n')
+      var parts = ex.split("\n");
+      ex = new Error(parts[1]);
+      ex.name = parts[0];
+      parts.shift();
+      parts.shift();
+      ex.stack = parts.join("\n");
     }
     if (!isError(ex)) {
       return this.captureMessage(
@@ -533,12 +576,12 @@ Raven.prototype = {
   },
 
   /*
-     * Manually send a message to Sentry
-     *
-     * @param {string} msg A plain message to be captured in Sentry
-     * @param {object} options A specific set of options for this message [optional]
-     * @return {Raven}
-     */
+   * Manually send a message to Sentry
+   *
+   * @param {string} msg A plain message to be captured in Sentry
+   * @param {object} options A specific set of options for this message [optional]
+   * @return {Raven}
+   */
   captureMessage: function(msg, options) {
     // config() automagically converts ignoreErrors from a list to a RegExp so we need to test for an
     // early call; we'll error on the side of logging anything called before configuration since it's
@@ -554,7 +597,7 @@ Raven.prototype = {
 
     var data = objectMerge(
       {
-        message: msg + '' // Make sure it's actually a string
+        message: msg + "" // Make sure it's actually a string
       },
       options
     );
@@ -638,11 +681,11 @@ Raven.prototype = {
   },
 
   /*
-     * Set/clear a user to be sent along with the payload.
-     *
-     * @param {object} user An object representing user data [optional]
-     * @return {Raven}
-     */
+   * Set/clear a user to be sent along with the payload.
+   *
+   * @param {object} user An object representing user data [optional]
+   * @return {Raven}
+   */
   setUserContext: function(user) {
     // Intentionally do not merge here since that's an unexpected behavior.
     this._globalContext.user = user;
@@ -651,34 +694,34 @@ Raven.prototype = {
   },
 
   /*
-     * Merge extra attributes to be sent along with the payload.
-     *
-     * @param {object} extra An object representing extra data [optional]
-     * @return {Raven}
-     */
+   * Merge extra attributes to be sent along with the payload.
+   *
+   * @param {object} extra An object representing extra data [optional]
+   * @return {Raven}
+   */
   setExtraContext: function(extra) {
-    this._mergeContext('extra', extra);
+    this._mergeContext("extra", extra);
 
     return this;
   },
 
   /*
-     * Merge tags to be sent along with the payload.
-     *
-     * @param {object} tags An object representing tags [optional]
-     * @return {Raven}
-     */
+   * Merge tags to be sent along with the payload.
+   *
+   * @param {object} tags An object representing tags [optional]
+   * @return {Raven}
+   */
   setTagsContext: function(tags) {
-    this._mergeContext('tags', tags);
+    this._mergeContext("tags", tags);
 
     return this;
   },
 
   /*
-     * Clear all of the context.
-     *
-     * @return {Raven}
-     */
+   * Clear all of the context.
+   *
+   * @return {Raven}
+   */
   clearContext: function() {
     this._globalContext = {};
 
@@ -686,21 +729,21 @@ Raven.prototype = {
   },
 
   /*
-     * Get a copy of the current context. This cannot be mutated.
-     *
-     * @return {object} copy of context
-     */
+   * Get a copy of the current context. This cannot be mutated.
+   *
+   * @return {object} copy of context
+   */
   getContext: function() {
     // lol javascript
     return JSON.parse(stringify(this._globalContext));
   },
 
   /*
-     * Set environment of application
-     *
-     * @param {string} environment Typically something like 'production'.
-     * @return {Raven}
-     */
+   * Set environment of application
+   *
+   * @param {string} environment Typically something like 'production'.
+   * @return {Raven}
+   */
   setEnvironment: function(environment) {
     this._globalOptions.environment = environment;
 
@@ -708,11 +751,11 @@ Raven.prototype = {
   },
 
   /*
-     * Set release version of application
-     *
-     * @param {string} release Typically something like a git SHA to identify version
-     * @return {Raven}
-     */
+   * Set release version of application
+   *
+   * @param {string} release Typically something like a git SHA to identify version
+   * @return {Raven}
+   */
   setRelease: function(release) {
     this._globalOptions.release = release;
 
@@ -720,12 +763,12 @@ Raven.prototype = {
   },
 
   /*
-     * Set the dataCallback option
-     *
-     * @param {function} callback The callback to run which allows the
-     *                            data blob to be mutated before sending
-     * @return {Raven}
-     */
+   * Set the dataCallback option
+   *
+   * @param {function} callback The callback to run which allows the
+   *                            data blob to be mutated before sending
+   * @return {Raven}
+   */
   setDataCallback: function(callback) {
     var original = this._globalOptions.dataCallback;
     this._globalOptions.dataCallback = keepOriginalCallback(original, callback);
@@ -733,40 +776,46 @@ Raven.prototype = {
   },
 
   /*
-     * Set the breadcrumbCallback option
-     *
-     * @param {function} callback The callback to run which allows filtering
-     *                            or mutating breadcrumbs
-     * @return {Raven}
-     */
+   * Set the breadcrumbCallback option
+   *
+   * @param {function} callback The callback to run which allows filtering
+   *                            or mutating breadcrumbs
+   * @return {Raven}
+   */
   setBreadcrumbCallback: function(callback) {
     var original = this._globalOptions.breadcrumbCallback;
-    this._globalOptions.breadcrumbCallback = keepOriginalCallback(original, callback);
+    this._globalOptions.breadcrumbCallback = keepOriginalCallback(
+      original,
+      callback
+    );
     return this;
   },
 
   /*
-     * Set the shouldSendCallback option
-     *
-     * @param {function} callback The callback to run which allows
-     *                            introspecting the blob before sending
-     * @return {Raven}
-     */
+   * Set the shouldSendCallback option
+   *
+   * @param {function} callback The callback to run which allows
+   *                            introspecting the blob before sending
+   * @return {Raven}
+   */
   setShouldSendCallback: function(callback) {
     var original = this._globalOptions.shouldSendCallback;
-    this._globalOptions.shouldSendCallback = keepOriginalCallback(original, callback);
+    this._globalOptions.shouldSendCallback = keepOriginalCallback(
+      original,
+      callback
+    );
     return this;
   },
 
   /**
-     * Override the default HTTP transport mechanism that transmits data
-     * to the Sentry server.
-     *
-     * @param {function} transport Function invoked instead of the default
-     *                             `makeRequest` handler.
-     *
-     * @return {Raven}
-     */
+   * Override the default HTTP transport mechanism that transmits data
+   * to the Sentry server.
+   *
+   * @param {function} transport Function invoked instead of the default
+   *                             `makeRequest` handler.
+   *
+   * @return {Raven}
+   */
   setTransport: function(transport) {
     this._globalOptions.transport = transport;
 
@@ -774,34 +823,34 @@ Raven.prototype = {
   },
 
   /*
-     * Get the latest raw exception that was captured by Raven.
-     *
-     * @return {error}
-     */
+   * Get the latest raw exception that was captured by Raven.
+   *
+   * @return {error}
+   */
   lastException: function() {
     return this._lastCapturedException;
   },
 
   /*
-     * Get the last event id
-     *
-     * @return {string}
-     */
+   * Get the last event id
+   *
+   * @return {string}
+   */
   lastEventId: function() {
     return this._lastEventId;
   },
 
   /*
-     * Determine if Raven is setup and ready to go.
-     *
-     * @return {boolean}
-     */
+   * Determine if Raven is setup and ready to go.
+   *
+   * @return {boolean}
+   */
   isSetup: function() {
     if (!this._hasJSON) return false; // needs JSON support
     if (!this._globalServer) {
       if (!this.ravenNotConfiguredError) {
         this.ravenNotConfiguredError = true;
-        this._logDebug('error', 'Error: Raven has not been configured.');
+        this._logDebug("error", "Error: Raven has not been configured.");
       }
       return false;
     }
@@ -869,18 +918,20 @@ Raven.prototype = {
 
   _triggerEvent: function(eventType, options) {
     // NOTE: `event` is a native browser thing, so let's avoid conflicting wiht it
-    var evt= {}, key;
+    var evt = {},
+      key;
 
     if (!this._hasDocument) return;
 
     options = options || {};
 
-    eventType = 'raven' + eventType.substr(0, 1).toUpperCase() + eventType.substr(1);
+    eventType =
+      "raven" + eventType.substr(0, 1).toUpperCase() + eventType.substr(1);
 
     if (_document.createEvent) {
-      evt = _document.createEvent('HTMLEvents');
+      evt = _document.createEvent("HTMLEvents");
       evt.initEvent(eventType, true, true);
-    } 
+    }
     if (_document.createEventObject) {
       evt = _document.createEventObject();
       evt.eventType = eventType;
@@ -895,12 +946,12 @@ Raven.prototype = {
       // IE9 if standards
       _document.dispatchEvent(evt);
       return;
-    } 
+    }
     if (_document.createEventObject) {
       // IE8 regardless of Quirks or Standards
       // IE9 if quirks
       try {
-        _document.fireEvent('on' + evt.eventType.toLowerCase(), evt);
+        _document.fireEvent("on" + evt.eventType.toLowerCase(), evt);
       } catch (e) {
         // Do nothing
       }
@@ -908,11 +959,11 @@ Raven.prototype = {
   },
 
   /**
-     * Wraps addEventListener to capture UI breadcrumbs
-     * @param evtName the event name (e.g. "click")
-     * @returns {Function}
-     * @private
-     */
+   * Wraps addEventListener to capture UI breadcrumbs
+   * @param evtName the event name (e.g. "click")
+   * @returns {Function}
+   * @private
+   */
   /* 暂时不做
   _breadcrumbEventHandler: function(evtName) {
     var self = this;
@@ -949,10 +1000,10 @@ Raven.prototype = {
   */
 
   /**
-     * Wraps addEventListener to capture keypress UI events
-     * @returns {Function}
-     * @private
-     */
+   * Wraps addEventListener to capture keypress UI events
+   * @returns {Function}
+   * @private
+   */
   /* 按键暂时不做
   _keypressEventHandler: function() {
     var self = this,
@@ -996,11 +1047,11 @@ Raven.prototype = {
   */
 
   /**
-     * Captures a breadcrumb of type "navigation", normalizing input URLs
-     * @param to the originating URL
-     * @param from the target URL
-     * @private
-     */
+   * Captures a breadcrumb of type "navigation", normalizing input URLs
+   * @param to the originating URL
+   * @param from the target URL
+   * @private
+   */
   _captureUrlChange: function(from, to) {
     var parsedLoc = parseUrl(this._location.href);
     var parsedTo = parseUrl(to);
@@ -1013,13 +1064,19 @@ Raven.prototype = {
 
     // Use only the path component of the URL if the URL matches the current
     // document (almost all the time when using pushState)
-    if (parsedLoc.protocol === parsedTo.protocol && parsedLoc.host === parsedTo.host)
+    if (
+      parsedLoc.protocol === parsedTo.protocol &&
+      parsedLoc.host === parsedTo.host
+    )
       to = parsedTo.relative;
-    if (parsedLoc.protocol === parsedFrom.protocol && parsedLoc.host === parsedFrom.host)
+    if (
+      parsedLoc.protocol === parsedFrom.protocol &&
+      parsedLoc.host === parsedFrom.host
+    )
       from = parsedFrom.relative;
 
     this.captureBreadcrumb({
-      category: 'navigation',
+      category: "navigation",
       data: {
         to: to,
         from: from
@@ -1028,9 +1085,9 @@ Raven.prototype = {
   },
 
   /**
-     * Wrap timer functions and event targets to catch errors and provide
-     * better metadata.
-     */
+   * Wrap timer functions and event targets to catch errors and provide
+   * better metadata.
+   */
   _instrumentTryCatch: function() {
     var self = this;
 
@@ -1061,12 +1118,12 @@ Raven.prototype = {
       };
     }
 
-    fill(_window, 'setTimeout', wrapTimeFn, wrappedBuiltIns);
-    fill(_window, 'setInterval', wrapTimeFn, wrappedBuiltIns);
+    fill(_window, "setTimeout", wrapTimeFn, wrappedBuiltIns);
+    fill(_window, "setInterval", wrapTimeFn, wrappedBuiltIns);
     if (_window.requestAnimationFrame) {
       fill(
         _window,
-        'requestAnimationFrame',
+        "requestAnimationFrame",
         function(orig) {
           return function(cb) {
             return orig(self.wrap(cb));
@@ -1195,14 +1252,14 @@ Raven.prototype = {
   },
 
   /**
-     * Instrument browser built-ins w/ breadcrumb capturing
-     *  - XMLHttpRequests
-     *  - DOM interactions (click/typing)
-     *  - window.location changes
-     *  - console
-     *
-     * Can be disabled or individually configured via the `autoBreadcrumbs` config option
-     */
+   * Instrument browser built-ins w/ breadcrumb capturing
+   *  - XMLHttpRequests
+   *  - DOM interactions (click/typing)
+   *  - window.location changes
+   *  - console
+   *
+   * Can be disabled or individually configured via the `autoBreadcrumbs` config option
+   */
   _instrumentBreadcrumbs: function() {
     var self = this;
     var autoBreadcrumbs = this._globalOptions.autoBreadcrumbs;
@@ -1368,7 +1425,8 @@ Raven.prototype = {
     // borrowed from: https://github.com/angular/angular.js/pull/13945/files
     var chrome = _window.chrome;
     var isChromePackagedApp = chrome && chrome.app && chrome.app.runtime;
-    var hasPushState = !isChromePackagedApp && _window.history && history && history.pushState;
+    var hasPushState =
+      !isChromePackagedApp && _window.history && history && history.pushState;
     if (autoBreadcrumbs.location && hasPushState) {
       // TODO: remove onpopstate handler on uninstall()
       var oldOnPopState = _window.onpopstate;
@@ -1383,7 +1441,7 @@ Raven.prototype = {
 
       fill(
         history,
-        'pushState',
+        "pushState",
         function(origPushState) {
           // note history.pushState.length is 0; intentionally not declaring
           // params to preserve 0 arity
@@ -1393,7 +1451,7 @@ Raven.prototype = {
             // url argument is optional
             if (url) {
               // coerce to string (this is what pushState does)
-              self._captureUrlChange(self._lastHref, url + '');
+              self._captureUrlChange(self._lastHref, url + "");
             }
 
             return origPushState.apply(this, arguments);
@@ -1410,11 +1468,11 @@ Raven.prototype = {
         self.captureBreadcrumb({
           message: msg,
           level: data.level,
-          category: 'console'
+          category: "console"
         });
       };
 
-      each(['debug', 'info', 'warn', 'error', 'log'], function(_, level) {
+      each(["debug", "info", "warn", "error", "log"], function(_, level) {
         wrapConsoleMethod(console, level, consoleMethodCallback);
       });
     }
@@ -1451,14 +1509,14 @@ Raven.prototype = {
       i = 7;
 
     try {
-      while (i--) dsn[dsnKeys[i]] = m[i] || '';
+      while (i--) dsn[dsnKeys[i]] = m[i] || "";
     } catch (e) {
-      throw new RavenConfigError('Invalid DSN: ' + str);
+      throw new RavenConfigError("Invalid DSN: " + str);
     }
 
     if (dsn.pass && !this._globalOptions.allowSecretKey) {
       throw new RavenConfigError(
-        'Do not specify your secret key in the DSN. See: http://bit.ly/raven-secret-key'
+        "Do not specify your secret key in the DSN. See: http://bit.ly/raven-secret-key"
       );
     }
 
@@ -1467,10 +1525,10 @@ Raven.prototype = {
 
   _getGlobalServer: function(uri) {
     // assemble the endpoint from the uri pieces
-    var globalServer = '//' + uri.host + (uri.port ? ':' + uri.port : '');
+    var globalServer = "//" + uri.host + (uri.port ? ":" + uri.port : "");
 
     if (uri.protocol) {
-      globalServer = uri.protocol + ':' + globalServer;
+      globalServer = uri.protocol + ":" + globalServer;
     }
     return globalServer;
   },
@@ -1485,7 +1543,7 @@ Raven.prototype = {
   _handleStackInfo: function(stackInfo, options) {
     var frames = this._prepareFrames(stackInfo, options);
 
-    this._triggerEvent('handle', {
+    this._triggerEvent("handle", {
       stackInfo: stackInfo,
       options: options
     });
@@ -1528,7 +1586,7 @@ Raven.prototype = {
       filename: frame.url,
       lineno: frame.line,
       colno: frame.column,
-      function: frame.func || '?'
+      function: frame.func || "?"
     };
 
     // Case when we don't have any information about the error
@@ -1540,15 +1598,17 @@ Raven.prototype = {
       normalized.filename = stackInfoUrl; // fallback to whole stacks url from onerror handler
     }
 
-    normalized.in_app = !// determine if an exception came from outside of our app
-    // first we check the global includePaths list.
-    (
-      (!!this._globalOptions.includePaths.test &&
-        !this._globalOptions.includePaths.test(normalized.filename)) ||
-      // Now we check for fun, if the function name is Raven or TraceKit
-      /(Raven|TraceKit)\./.test(normalized['function']) ||
-      // finally, we do a last ditch effort and check for raven.min.js
-      /raven\.(min\.)?js$/.test(normalized.filename)
+    normalized.in_app = !(
+      // determine if an exception came from outside of our app
+      // first we check the global includePaths list.
+      (
+        (!!this._globalOptions.includePaths.test &&
+          !this._globalOptions.includePaths.test(normalized.filename)) ||
+        // Now we check for fun, if the function name is Raven or TraceKit
+        /(Raven|TraceKit)\./.test(normalized["function"]) ||
+        // finally, we do a last ditch effort and check for raven.min.js
+        /raven\.(min\.)?js$/.test(normalized.filename)
+      )
     );
 
     return normalized;
@@ -1562,14 +1622,14 @@ Raven.prototype = {
     )
       return;
 
-    message += '';
+    message += "";
 
     if (frames && frames.length) {
       fileurl = frames[0].filename || fileurl;
       // Sentry expects frames oldest to newest
       // and JS sends them as newest to oldest
       frames.reverse();
-      stacktrace = {frames: frames};
+      stacktrace = { frames: frames };
     } else if (fileurl) {
       stacktrace = {
         frames: [
@@ -1632,7 +1692,10 @@ Raven.prototype = {
         request.url = truncate(request.url, this._globalOptions.maxUrlLength);
       }
       if (request.Referer) {
-        request.Referer = truncate(request.Referer, this._globalOptions.maxUrlLength);
+        request.Referer = truncate(
+          request.Referer,
+          this._globalOptions.maxUrlLength
+        );
       }
     }
 
@@ -1643,12 +1706,12 @@ Raven.prototype = {
   },
 
   /**
-     * Truncate breadcrumb values (right now just URLs)
-     */
+   * Truncate breadcrumb values (right now just URLs)
+   */
   _trimBreadcrumbs: function(breadcrumbs) {
     // known breadcrumb properties with urls
     // TODO: also consider arbitrary prop values that start with (https?)?://
-    var urlProps = ['to', 'from', 'url'],
+    var urlProps = ["to", "from", "url"],
       urlProp,
       crumb,
       data;
@@ -1656,7 +1719,7 @@ Raven.prototype = {
     for (var i = 0; i < breadcrumbs.values.length; ++i) {
       crumb = breadcrumbs.values[i];
       if (
-        !crumb.hasOwnProperty('data') ||
+        !crumb.hasOwnProperty("data") ||
         !isObject(crumb.data) ||
         objectFrozen(crumb.data)
       )
@@ -1666,7 +1729,10 @@ Raven.prototype = {
       for (var j = 0; j < urlProps.length; ++j) {
         urlProp = urlProps[j];
         if (data.hasOwnProperty(urlProp) && data[urlProp]) {
-          data[urlProp] = truncate(data[urlProp], this._globalOptions.maxUrlLength);
+          data[urlProp] = truncate(
+            data[urlProp],
+            this._globalOptions.maxUrlLength
+          );
         }
       }
       breadcrumbs.values[i].data = data;
@@ -1676,7 +1742,7 @@ Raven.prototype = {
   _getHttpData: function() {
     var httpData = {};
     httpData.headers = {
-      'User-Agent': 'weapp'
+      "User-Agent": "weapp"
     };
 
     /* 没有referrer 当前页面路径去页面堆栈数据
@@ -1704,18 +1770,21 @@ Raven.prototype = {
   },
 
   _shouldBackoff: function() {
-    return this._backoffDuration && now() - this._backoffStart < this._backoffDuration;
+    return (
+      this._backoffDuration &&
+      now() - this._backoffStart < this._backoffDuration
+    );
   },
 
   /**
-     * Returns true if the in-process data payload matches the signature
-     * of the previously-sent data
-     *
-     * NOTE: This has to be done at this level because TraceKit can generate
-     *       data from window.onerror WITHOUT an exception object (IE8, IE9,
-     *       other old browsers). This can take the form of an "exception"
-     *       data object with a single frame (derived from the onerror args).
-     */
+   * Returns true if the in-process data payload matches the signature
+   * of the previously-sent data
+   *
+   * NOTE: This has to be done at this level because TraceKit can generate
+   *       data from window.onerror WITHOUT an exception object (IE8, IE9,
+   *       other old browsers). This can take the form of an "exception"
+   *       data object with a single frame (derived from the onerror args).
+   */
   _isRepeatData: function(current) {
     var last = this._lastData;
 
@@ -1754,7 +1823,7 @@ Raven.prototype = {
     try {
       // If Retry-After is not in Access-Control-Expose-Headers, most
       // browsers will throw an exception trying to access it
-      retry = request.getResponseHeader('Retry-After');
+      retry = request.getResponseHeader("Retry-After");
       retry = parseInt(retry, 10) * 1000; // Retry-After is returned in seconds
     } catch (e) {
       /* eslint no-empty:0 */
@@ -1775,7 +1844,7 @@ Raven.prototype = {
     var baseData = {
         project: this._globalProject,
         logger: globalOptions.logger,
-        platform: 'javascript'
+        platform: "javascript"
       },
       httpData = this._getHttpData();
 
@@ -1789,11 +1858,17 @@ Raven.prototype = {
     data = objectMerge(baseData, data);
 
     // Merge in the tags and extra separately since objectMerge doesn't handle a deep merge
-    data.tags = objectMerge(objectMerge({}, this._globalContext.tags), data.tags);
-    data.extra = objectMerge(objectMerge({}, this._globalContext.extra), data.extra);
+    data.tags = objectMerge(
+      objectMerge({}, this._globalContext.tags),
+      data.tags
+    );
+    data.extra = objectMerge(
+      objectMerge({}, this._globalContext.extra),
+      data.extra
+    );
 
     // Send along our own collected metadata with extra
-    data.extra['session:duration'] = now() - this._startTime;
+    data.extra["session:duration"] = now() - this._startTime;
 
     if (this._breadcrumbs && this._breadcrumbs.length > 0) {
       // intentionally make shallow copy so that additions
@@ -1840,11 +1915,10 @@ Raven.prototype = {
     // Backoff state: Sentry server previously responded w/ an error (e.g. 429 - too many requests),
     // so drop requests until "cool-off" period has elapsed.
     if (this._shouldBackoff()) {
-      this._logDebug('warn', 'Raven dropped error due to backoff: ', data);
+      this._logDebug("warn", "Raven dropped error due to backoff: ", data);
       return;
     }
-
-    if (typeof globalOptions.sampleRate === 'number') {
+    if (typeof globalOptions.sampleRate === "number") {
       if (Math.random() < globalOptions.sampleRate) {
         this._sendProcessedPayload(data);
       }
@@ -1870,7 +1944,7 @@ Raven.prototype = {
     // but this would require copying an un-truncated copy of the data packet, which can be
     // arbitrarily deep (extra_data) -- could be worthwhile? will revisit
     if (!this._globalOptions.allowDuplicates && this._isRepeatData(data)) {
-      this._logDebug('warn', 'Raven dropped repeat event: ', data);
+      this._logDebug("warn", "Raven dropped repeat event: ", data);
       return;
     }
 
@@ -1882,11 +1956,11 @@ Raven.prototype = {
     // Store outbound payload after trim
     this._lastData = data;
 
-    this._logDebug('debug', 'Raven about to send:', data);
+    this._logDebug("debug", "Raven about to send:", data);
 
     var auth = {
-      sentry_version: '7',
-      sentry_client: 'raven-weapp/' + this.VERSION,
+      sentry_version: "7",
+      sentry_client: "raven-weapp/" + this.VERSION,
       sentry_key: this._globalKey
     };
 
@@ -1896,12 +1970,12 @@ Raven.prototype = {
 
     var exception = data.exception && data.exception.values[0];
     this.captureBreadcrumb({
-      category: 'sentry',
+      category: "sentry",
       message: exception
-        ? (exception.type ? exception.type + ': ' : '') + exception.value
+        ? (exception.type ? exception.type + ": " : "") + exception.value
         : data.message,
       event_id: data.event_id,
-      level: data.level || 'error' // presume error unless specified
+      level: data.level || "error" // presume error unless specified
     });
 
     var url = this._globalEndpoint;
@@ -1913,24 +1987,26 @@ Raven.prototype = {
       onSuccess: function success() {
         self._resetBackoff();
 
-        self._triggerEvent('success', {
+        self._triggerEvent("success", {
           data: data,
           src: url
         });
         callback && callback();
       },
       onError: function failure(error) {
-        self._logDebug('error', 'Raven transport failed to send: ', error);
+        self._logDebug("error", "Raven transport failed to send: ", error);
 
         if (error.request) {
           self._setBackoffState(error.request);
         }
 
-        self._triggerEvent('failure', {
+        self._triggerEvent("failure", {
           data: data,
           src: url
         });
-        error = error || new Error('Raven send failed (no additional details provided)');
+        error =
+          error ||
+          new Error("Raven send failed (no additional details provided)");
         callback && callback(error);
       }
     });
@@ -1978,12 +2054,13 @@ Raven.prototype = {
     request.open('POST', url + '?' + urlencode(opts.auth));
     request.send(stringify(opts.data));
     */
-    if (this._globalOptions.environment === 'production') {
-      swan.request({
-        url: opts.url + '?' + urlencode(opts.auth),
-        method: 'POST',
+    if (this._globalOptions.environment === "production") {
+      if (!ENV) return;
+      ENV.request({
+        url: opts.url + "?" + urlencode(opts.auth),
+        method: "POST",
         header: {
-          'content-type': 'text/plain;charset=UTF-8'
+          "content-type": "text/plain;charset=UTF-8"
         },
         data: stringify(opts.data),
         success: function() {
@@ -2011,7 +2088,10 @@ Raven.prototype = {
     if (isUndefined(context)) {
       delete this._globalContext[key];
     } else {
-      this._globalContext[key] = objectMerge(this._globalContext[key] || {}, context);
+      this._globalContext[key] = objectMerge(
+        this._globalContext[key] || {},
+        context
+      );
     }
   }
 };
@@ -2029,11 +2109,11 @@ function isUndefined(what) {
 }
 
 function isFunction(what) {
-  return typeof what === 'function';
+  return typeof what === "function";
 }
 
 function isString(what) {
-  return objectPrototype.toString.call(what) === '[object String]';
+  return objectPrototype.toString.call(what) === "[object String]";
 }
 
 function isEmptyObject(what) {
@@ -2086,7 +2166,7 @@ function objectFrozen(obj) {
 }
 
 function truncate(str, max) {
-  return !max || str.length <= max ? str : str.substr(0, max) + '\u2026';
+  return !max || str.length <= max ? str : str.substr(0, max) + "\u2026";
 }
 
 /**
@@ -2113,34 +2193,36 @@ function joinRegExp(patterns) {
     if (isString(pattern)) {
       // If it's a string, we need to escape it
       // Taken from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
-      sources.push(pattern.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, '\\$1'));
+      sources.push(pattern.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"));
     } else if (pattern && pattern.source) {
       // If it's a regexp already, we want to extract the source
       sources.push(pattern.source);
     }
     // Intentionally skip other cases
   }
-  return new RegExp(sources.join('|'), 'i');
+  return new RegExp(sources.join("|"), "i");
 }
 
 function urlencode(o) {
   var pairs = [];
   each(o, function(key, value) {
-    pairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
+    pairs.push(encodeURIComponent(key) + "=" + encodeURIComponent(value));
   });
-  return pairs.join('&');
+  return pairs.join("&");
 }
 
 // borrowed from https://tools.ietf.org/html/rfc3986#appendix-B
 // intentionally using regex and not <a/> href parsing trick because React Native and other
 // environments where DOM might not be available
 function parseUrl(url) {
-  var match = url.match(/^(([^:\/?#]+):)?(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?$/);
+  var match = url.match(
+    /^(([^:\/?#]+):)?(\/\/([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?$/
+  );
   if (!match) return {};
 
   // coerce to undefined values to empty string so we don't get 'undefined'
-  var query = match[6] || '';
-  var fragment = match[8] || '';
+  var query = match[6] || "";
+  var fragment = match[8] || "";
   return {
     protocol: match[2],
     host: match[4],
@@ -2165,7 +2247,7 @@ function uuid4() {
     var pad = function(num) {
       var v = num.toString(16);
       while (v.length < 4) {
-        v = '0' + v;
+        v = "0" + v;
       }
       return v;
     };
@@ -2182,9 +2264,9 @@ function uuid4() {
     );
   } else {
     // http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/2117523#2117523
-    return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    return "xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx".replace(/[xy]/g, function(c) {
       var r = (Math.random() * 16) | 0,
-        v = c === 'x' ? r : (r & 0x3) | 0x8;
+        v = c === "x" ? r : (r & 0x3) | 0x8;
       return v.toString(16);
     });
   }
@@ -2319,7 +2401,7 @@ function isSameStacktrace(stack1, stack2) {
       a.filename !== b.filename ||
       a.lineno !== b.lineno ||
       a.colno !== b.colno ||
-      a['function'] !== b['function']
+      a["function"] !== b["function"]
     )
       return false;
   }
@@ -2341,7 +2423,7 @@ function fill(obj, name, replacement, track) {
   }
 }
 
-if (typeof __DEV__ !== 'undefined' && __DEV__) {
+if (typeof __DEV__ !== "undefined" && __DEV__) {
   Raven.utils = {
     isUndefined: isUndefined,
     isFunction: isFunction,
@@ -2370,7 +2452,93 @@ Raven.prototype.setReleaseContext = Raven.prototype.setRelease;
 module.exports = Raven;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../vendor/TraceKit/tracekit":6,"../vendor/json-stringify-safe/stringify":7,"./configError":1,"./console":2,"./utils":5}],4:[function(require,module,exports){
+},{"../vendor/TraceKit/tracekit":8,"../vendor/json-stringify-safe/stringify":9,"./configError":1,"./console":2,"./env":3,"./utils":7}],5:[function(require,module,exports){
+var arr = [];
+var replacerStack = [];
+
+// Regular stringify
+function stringify(obj, replacer, spacer) {
+  decirc(obj, "", [], undefined);
+  var res;
+  if (replacerStack.length === 0) {
+    res = JSON.stringify(obj, replacer, spacer);
+  } else {
+    res = JSON.stringify(obj, replaceGetterValues(replacer), spacer);
+  }
+  while (arr.length !== 0) {
+    var part = arr.pop();
+    if (part.length === 4) {
+      Object.defineProperty(part[0], part[1], part[3]);
+    } else {
+      part[0][part[1]] = part[2];
+    }
+  }
+  return res;
+}
+function decirc(val, k, stack, parent) {
+  var i;
+  if (typeof val === "object" && val !== null) {
+    for (i = 0; i < stack.length; i++) {
+      if (stack[i] === val) {
+        var propertyDescriptor = Object.getOwnPropertyDescriptor(parent, k);
+        if (propertyDescriptor.get !== undefined) {
+          if (propertyDescriptor.configurable) {
+            Object.defineProperty(parent, k, { value: "[Circular]" });
+            arr.push([parent, k, val, propertyDescriptor]);
+          } else {
+            replacerStack.push([val, k]);
+          }
+        } else {
+          parent[k] = "[Circular]";
+          arr.push([parent, k, val]);
+        }
+        return;
+      }
+    }
+    stack.push(val);
+    // Optimize for Arrays. Big arrays could kill the performance otherwise!
+    if (Array.isArray(val)) {
+      for (i = 0; i < val.length; i++) {
+        decirc(val[i], i, stack, val);
+      }
+    } else {
+      var keys = Object.keys(val);
+      for (i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        decirc(val[key], key, stack, val);
+      }
+    }
+    stack.pop();
+  }
+}
+
+function replaceGetterValues(replacer) {
+  replacer =
+    replacer !== undefined
+      ? replacer
+      : function(k, v) {
+          return v;
+        };
+  return function(key, val) {
+    if (replacerStack.length > 0) {
+      for (var i = 0; i < replacerStack.length; i++) {
+        var part = replacerStack[i];
+        if (part[1] === key && part[0] === val) {
+          val = "[Circular]";
+          replacerStack.splice(i, 1);
+          break;
+        }
+      }
+    }
+    return replacer.call(this, key, val);
+  };
+}
+
+module.exports = {
+  safeStringify: stringify
+};
+
+},{}],6:[function(require,module,exports){
 (function (global){
 /**
  * Enforces a single instance of the Raven client, and the
@@ -2407,7 +2575,7 @@ Raven.afterLoad();
 module.exports = Raven;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./raven":3}],5:[function(require,module,exports){
+},{"./raven":4}],7:[function(require,module,exports){
 'use strict';
 
 var isObject = function (what) {
@@ -2447,7 +2615,7 @@ module.exports = {
   wrappedCallback: wrappedCallback
 };
 
-},{}],6:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -3106,7 +3274,7 @@ TraceKit.computeStackTrace = (function computeStackTraceWrapper() {
 module.exports = TraceKit;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../src/utils":5}],7:[function(require,module,exports){
+},{"../../src/utils":7}],9:[function(require,module,exports){
 'use strict';
 
 /*
@@ -3156,5 +3324,5 @@ function serializer(replacer, cycleReplacer) {
   };
 }
 
-},{}]},{},[4])(4)
+},{}]},{},[6])(6)
 });

@@ -1,5 +1,7 @@
 "use strict";
 
+var safeStringify = require("./safeStringify").safeStringify;
+
 var wrapMethod = function(console, level, callback) {
   var originalConsoleLevel = console[level];
   var originalConsole = console;
@@ -13,7 +15,9 @@ var wrapMethod = function(console, level, callback) {
   console[level] = function() {
     var args = [].slice.call(arguments);
 
+    /* v0 */
     // var msg = "" + args.join(" ");
+    /* v1 */
     // var msg =
     //   "" +
     //   args
@@ -24,20 +28,15 @@ var wrapMethod = function(console, level, callback) {
     //       return arg;
     //     })
     //     .join(" ");
-    var cache = [];
+    /* v3 */
     var msg =
       "" +
       args
         .map(function(arg) {
-          return JSON.stringify(arg, function(key, value) {
-            if (typeof value === "object" && value !== null) {
-              if (cache.indexOf(value) !== -1) {
-                return;
-              }
-              cache.push(value);
-            }
-            return value;
-          });
+          if (typeof arg === "object") {
+            return safeStringify(arg);
+          }
+          return arg;
         })
         .join(" ");
 

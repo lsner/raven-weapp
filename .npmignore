@@ -7,5 +7,4 @@ vendor/
 package-lock.json
 brower.json
 build/raven.js
-build/raven.min.js.map
 Gruntfile.js
