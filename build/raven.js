@@ -118,7 +118,6 @@ var stringify = require("../vendor/json-stringify-safe/stringify");
 var RavenConfigError = require("./configError");
 var utils = require("./utils");
 var ENV = require("./env").getENV();
-console.log("sentry ENV====", ENV);
 
 var isError = utils.isError,
   isObject = utils.isObject;
@@ -2617,9 +2616,9 @@ module.exports = {
 
 },{}],8:[function(require,module,exports){
 (function (global){
-'use strict';
+"use strict";
 
-var utils = require('../../src/utils');
+var utils = require("../../src/utils");
 
 /*
  TraceKit - Cross brower stack traces
@@ -2638,18 +2637,22 @@ var TraceKit = {
 
 // This is to be defensive in environments where window does not exist (see https://github.com/getsentry/raven-js/pull/785)
 var _window =
-  typeof window !== 'undefined'
-    ? window
-    : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+  typeof window !== "undefined"
+    ? Object.assign({}, window)
+    : typeof global !== "undefined"
+    ? Object.assign({}, global)
+    : typeof self !== "undefined"
+    ? Object.assign({}, self)
+    : {};
 
 // global reference to slice
 var _slice = [].slice;
-var UNKNOWN_FUNCTION = '?';
+var UNKNOWN_FUNCTION = "?";
 
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error#Error_types
 var ERROR_TYPES_RE = /^(?:[Uu]ncaught (?:exception: )?)?(?:((?:Eval|Internal|Range|Reference|Syntax|Type|URI|)Error): )?(.*)$/;
 
-var getLocationHref = function () {
+var getLocationHref = function() {
   /*
   if (typeof document === 'undefined' || document.location == null) return '';
   return document.location.href;
@@ -2659,8 +2662,8 @@ var getLocationHref = function () {
   if (pageStack && pageStack.length) {
     return pageStack[pageStack.length - 1].route;
   }
-  return '';
-}
+  return "";
+};
 
 /**
  * TraceKit.report: cross-browser processing of unhandled exceptions
@@ -2708,18 +2711,18 @@ TraceKit.report = (function reportModuleWrapper() {
     lastExceptionStack = null;
 
   /**
-     * Add a crash handler.
-     * @param {Function} handler
-     */
+   * Add a crash handler.
+   * @param {Function} handler
+   */
   function subscribe(handler) {
     installGlobalHandler();
     handlers.push(handler);
   }
 
   /**
-     * Remove a crash handler.
-     * @param {Function} handler
-     */
+   * Remove a crash handler.
+   * @param {Function} handler
+   */
   function unsubscribe(handler) {
     for (var i = handlers.length - 1; i >= 0; --i) {
       if (handlers[i] === handler) {
@@ -2729,17 +2732,17 @@ TraceKit.report = (function reportModuleWrapper() {
   }
 
   /**
-     * Remove all crash handlers.
-     */
+   * Remove all crash handlers.
+   */
   function unsubscribeAll() {
     uninstallGlobalHandler();
     handlers = [];
   }
 
   /**
-     * Dispatch stack information to all handlers.
-     * @param {Object.<string, *>} stack
-     */
+   * Dispatch stack information to all handlers.
+   * @param {Object.<string, *>} stack
+   */
   function notifyHandlers(stack, isWindowError) {
     var exception = null;
     if (isWindowError && !TraceKit.collectWindowErrors) {
@@ -2763,16 +2766,16 @@ TraceKit.report = (function reportModuleWrapper() {
   var _oldOnerrorHandler, _onErrorHandlerInstalled;
 
   /**
-     * Ensures all global unhandled exceptions are recorded.
-     * Supported by Gecko and IE.
-     * @param {string} message Error message.
-     * @param {string} url URL of script that generated the exception.
-     * @param {(number|string)} lineNo The line number at which the error
-     * occurred.
-     * @param {?(number|string)} colNo The column number at which the error
-     * occurred.
-     * @param {?Error} ex The actual Error object.
-     */
+   * Ensures all global unhandled exceptions are recorded.
+   * Supported by Gecko and IE.
+   * @param {string} message Error message.
+   * @param {string} url URL of script that generated the exception.
+   * @param {(number|string)} lineNo The line number at which the error
+   * occurred.
+   * @param {?(number|string)} colNo The column number at which the error
+   * occurred.
+   * @param {?Error} ex The actual Error object.
+   */
   function traceKitWindowOnError(message, url, lineNo, colNo, ex) {
     var stack = null;
 
@@ -2802,7 +2805,7 @@ TraceKit.report = (function reportModuleWrapper() {
       var name = undefined;
       var msg = message; // must be new var or will modify original `arguments`
       var groups;
-      if ({}.toString.call(message) === '[object String]') {
+      if ({}.toString.call(message) === "[object String]") {
         var groups = message.match(ERROR_TYPES_RE);
         if (groups) {
           name = groups[1];
@@ -2856,12 +2859,12 @@ TraceKit.report = (function reportModuleWrapper() {
   }
 
   /**
-     * Reports an unhandled Error to TraceKit.
-     * @param {Error} ex
-     * @param {?boolean} rethrow If false, do not re-throw the exception.
-     * Only used for window.onerror to not cause an infinite loop of
-     * rethrowing.
-     */
+   * Reports an unhandled Error to TraceKit.
+   * @param {Error} ex
+   * @param {?boolean} rethrow If false, do not re-throw the exception.
+   * Only used for window.onerror to not cause an infinite loop of
+   * rethrowing.
+   */
   function report(ex, rethrow) {
     var args = _slice.call(arguments, 1);
     if (lastExceptionStack) {
@@ -2881,11 +2884,14 @@ TraceKit.report = (function reportModuleWrapper() {
     // slow slow IE to see if onerror occurs or not before reporting
     // this exception; otherwise, we will end up with an incomplete
     // stack trace
-    setTimeout(function() {
-      if (lastException === ex) {
-        processLastException();
-      }
-    }, stack.incomplete ? 2000 : 0);
+    setTimeout(
+      function() {
+        if (lastException === ex) {
+          processLastException();
+        }
+      },
+      stack.incomplete ? 2000 : 0
+    );
 
     if (rethrow !== false) {
       throw ex; // re-throw to propagate to the top level (and cause window.onerror)
@@ -2988,13 +2994,13 @@ TraceKit.computeStackTrace = (function computeStackTraceWrapper() {
   // ex.stacktrace = n/a; see 'opera:config#UserPrefs|Exceptions Have Stacktrace'
 
   /**
-     * Computes stack trace information from the stack property.
-     * Chrome and Gecko use this property.
-     * @param {Error} ex
-     * @return {?Object.<string, *>} Stack trace information.
-     */
+   * Computes stack trace information from the stack property.
+   * Chrome and Gecko use this property.
+   * @param {Error} ex
+   * @return {?Object.<string, *>} Stack trace information.
+   */
   function computeStackTraceFromStackProp(ex) {
-    if (typeof ex.stack === 'undefined' || !ex.stack) return;
+    if (typeof ex.stack === "undefined" || !ex.stack) return;
 
     var // chrome = /^\s*at (.*?) ?\(((?:file|https?|blob|chrome-extension|native|eval|webpack|<anonymous>|\/).*?)(?::(\d+))?(?::(\d+))?\)?\s*$/i,
       // gecko = /^\s*(.*?)(?:\((.*?)\))?(?:^|@)((?:file|https?|blob|chrome|webpack|resource|\[native).*?|[^@]*bundle)(?::(\d+))?(?::(\d+))?\s*$/i,
@@ -3003,7 +3009,7 @@ TraceKit.computeStackTrace = (function computeStackTraceWrapper() {
       // Used to additionally parse URL/line/column from eval frames
       geckoEval = /(\S+) line (\d+)(?: > eval line \d+)* > eval/i,
       chromeEval = /\((\S*)(?::(\d+))(?::(\d+))\)/,
-      lines = ex.stack.split('\n'),
+      lines = ex.stack.split("\n"),
       stack = [],
       submatch,
       parts,
@@ -3062,9 +3068,9 @@ TraceKit.computeStackTrace = (function computeStackTraceWrapper() {
       }
       */
 
-     if ((parts = weappAndriod.exec(lines[i]))) {
-        var isNative = parts[2] && parts[2].indexOf('native') === 0; // start of line
-        var isEval = parts[2] && parts[2].indexOf('eval') === 0; // start of line
+      if ((parts = weappAndriod.exec(lines[i]))) {
+        var isNative = parts[2] && parts[2].indexOf("native") === 0; // start of line
+        var isEval = parts[2] && parts[2].indexOf("eval") === 0; // start of line
         if (isEval && (submatch = chromeEval.exec(parts[2]))) {
           // throw out eval line/column and use top-most line/column number
           parts[2] = submatch[1]; // url
@@ -3079,7 +3085,7 @@ TraceKit.computeStackTrace = (function computeStackTraceWrapper() {
           column: parts[4] ? +parts[4] : null
         };
       } else {
-        continue
+        continue;
       }
 
       if (!element.func && element.line) {
@@ -3102,19 +3108,24 @@ TraceKit.computeStackTrace = (function computeStackTraceWrapper() {
   }
 
   /**
-     * Adds information about the first frame to incomplete stack traces.
-     * Safari and IE require this to get complete data on the first frame.
-     * @param {Object.<string, *>} stackInfo Stack trace information from
-     * one of the compute* methods.
-     * @param {string} url The URL of the script that caused an error.
-     * @param {(number|string)} lineNo The line number of the script that
-     * caused an error.
-     * @param {string=} message The error generated by the browser, which
-     * hopefully contains the name of the object that caused the error.
-     * @return {boolean} Whether or not the stack information was
-     * augmented.
-     */
-  function augmentStackTraceWithInitialElement(stackInfo, url, lineNo, message) {
+   * Adds information about the first frame to incomplete stack traces.
+   * Safari and IE require this to get complete data on the first frame.
+   * @param {Object.<string, *>} stackInfo Stack trace information from
+   * one of the compute* methods.
+   * @param {string} url The URL of the script that caused an error.
+   * @param {(number|string)} lineNo The line number of the script that
+   * caused an error.
+   * @param {string=} message The error generated by the browser, which
+   * hopefully contains the name of the object that caused the error.
+   * @return {boolean} Whether or not the stack information was
+   * augmented.
+   */
+  function augmentStackTraceWithInitialElement(
+    stackInfo,
+    url,
+    lineNo,
+    message
+  ) {
     var initial = {
       url: url,
       line: lineNo
@@ -3152,14 +3163,14 @@ TraceKit.computeStackTrace = (function computeStackTraceWrapper() {
   }
 
   /**
-     * Computes stack trace information by walking the arguments.caller
-     * chain at the time the exception occurred. This will cause earlier
-     * frames to be missed but is the only way to get any stack trace in
-     * Safari and IE. The top frame is restored by
-     * {@link augmentStackTraceWithInitialElement}.
-     * @param {Error} ex
-     * @return {?Object.<string, *>} Stack trace information.
-     */
+   * Computes stack trace information by walking the arguments.caller
+   * chain at the time the exception occurred. This will cause earlier
+   * frames to be missed but is the only way to get any stack trace in
+   * Safari and IE. The top frame is restored by
+   * {@link augmentStackTraceWithInitialElement}.
+   * @param {Error} ex
+   * @return {?Object.<string, *>} Stack trace information.
+   */
   function computeStackTraceByWalkingCallerChain(ex, depth) {
     var functionName = /function\s+([_$a-zA-Z\xA0-\uFFFF][_$a-zA-Z0-9\xA0-\uFFFF]*)?\s*\(/i,
       stack = [],
@@ -3192,16 +3203,16 @@ TraceKit.computeStackTrace = (function computeStackTraceWrapper() {
         item.func = parts[1];
       }
 
-      if (typeof item.func === 'undefined') {
+      if (typeof item.func === "undefined") {
         try {
-          item.func = parts.input.substring(0, parts.input.indexOf('{'));
+          item.func = parts.input.substring(0, parts.input.indexOf("{"));
         } catch (e) {}
       }
 
-      if (funcs['' + curr]) {
+      if (funcs["" + curr]) {
         recursion = true;
       } else {
-        funcs['' + curr] = true;
+        funcs["" + curr] = true;
       }
 
       stack.push(item);
@@ -3229,10 +3240,10 @@ TraceKit.computeStackTrace = (function computeStackTraceWrapper() {
   }
 
   /**
-     * Computes a stack trace for an exception.
-     * @param {Error} ex
-     * @param {(string|number)=} depth
-     */
+   * Computes a stack trace for an exception.
+   * @param {Error} ex
+   * @param {(string|number)=} depth
+   */
   function computeStackTrace(ex, depth) {
     var stack = null;
     depth = depth == null ? 0 : +depth;

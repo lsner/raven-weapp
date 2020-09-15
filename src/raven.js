@@ -6,7 +6,6 @@ var stringify = require("../vendor/json-stringify-safe/stringify");
 var RavenConfigError = require("./configError");
 var utils = require("./utils");
 var ENV = require("./env").getENV();
-console.log("sentry ENV====", ENV);
 
 var isError = utils.isError,
   isObject = utils.isObject;
